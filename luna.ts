@@ -38,10 +38,6 @@ const client = new ftx({
 // ---------------------------------------------------------------------------
 
 
-const baseAsset = 'LUNA'
-const symbol = baseAsset + '-PERP'
-const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
-
 const amount = 5
 const limit = 10
 const updateNum = updateNumber.ftx.LUNA
@@ -49,17 +45,19 @@ let kairi1 = 0.27
 let kairi2 = 0.27
 
 
-
 // ---------------------------------------------------------------------------
 
 
-const loop = async () => {
+const loop = async (baseAsset: string) => {
 	const clearingHouse = ClearingHouse.from(
 		connection,
 		wallet,
 		clearingHousePublicKey
 	)
 	await clearingHouse.subscribe()
+
+	const symbol = baseAsset + '-PERP'
+	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 
 	let flag1 = false
 	let flag2 = false
@@ -341,14 +339,18 @@ const loop = async () => {
 }
 
 
-const check = async (base: number, delta: number) => {
+const check = async (baseAsset: string, base: number, delta: number) => {
 	const clearingHouse = ClearingHouse.from(
 		connection,
 		wallet,
 		clearingHousePublicKey
 	)
 	await clearingHouse.subscribe()
+
 	const pythClient = new PythClient(connection)
+
+	const symbol = baseAsset + '-PERP'
+	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 	
 	while (true) {
 		while (true) {
@@ -392,5 +394,5 @@ const check = async (base: number, delta: number) => {
 // ---------------------------------------------------------------------------
 
 
-loop()
-check(0.27, 0.04)
+loop('LUNA')
+check('LUNA', 0.27, 0.04)
