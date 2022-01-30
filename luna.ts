@@ -42,7 +42,7 @@ const baseAsset = 'LUNA'
 const symbol = baseAsset + '-PERP'
 const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 
-const amount = 1
+const amount = 5
 const limit = 10
 const updateNum = updateNumber.ftx.LUNA
 let kairi1 = 0.27
@@ -53,7 +53,7 @@ let kairi2 = 0.27
 // ---------------------------------------------------------------------------
 
 
-const main = async () => {
+const loop = async () => {
 	const clearingHouse = ClearingHouse.from(
 		connection,
 		wallet,
@@ -168,10 +168,10 @@ const main = async () => {
 					process.exit(0)
 				}
 				
-				console.log('driftでの約定確認')
-				console.log(`Count: ${count}, Position Amount: ${amount * count} ${baseAsset}`)
-
 				count += 1
+				console.log('driftでの約定確認')
+				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
+
 				flag1 = false
 				flagOrder1 = true
 				errCount = 0
@@ -216,6 +216,7 @@ const main = async () => {
 		if (-limit < count) {
 			if (flagOrder2) {
 				flagOrder2 = false
+				ftxPrice2 = driftPrice * (100 + kairi2) / 100
 				while (true) {
 					try {
 						tx = await client.createLimitSellOrder(symbol, remaining2, ftxPrice2)
@@ -291,10 +292,10 @@ const main = async () => {
 					process.exit(0)
 				}
 				
-				
-				console.log('driftでの約定確認')
-				console.log(`Count: ${count}, Position Amount: ${amount * count} ${baseAsset}`)
 				count -= 1
+				console.log('driftでの約定確認')
+				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
+
 				flag2 = false
 				flagOrder2 = true
 				errCount = 0
@@ -391,5 +392,5 @@ const check = async (base: number, delta: number) => {
 // ---------------------------------------------------------------------------
 
 
-main()
-check(0.27, 4)
+loop()
+check(0.27, 0.04)
