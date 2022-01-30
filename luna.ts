@@ -1,8 +1,9 @@
 require('dotenv').config()
-import { ftx } from 'ccxt'
-import { BN, Wallet } from '@project-serum/anchor'
+import { ftx, Order } from 'ccxt'
 import { Connection, Keypair, PublicKey } from '@solana/web3.js'
 import {
+	BN,
+	Wallet,
 	calculateMarkPrice,
 	calculateEstimatedFundingRate,
 	ClearingHouse,
@@ -13,7 +14,7 @@ import {
 	convertToNumber,
 	MARK_PRICE_PRECISION
 } from '@drift-labs/sdk'
-import { sleep } from './libs/lib'
+import { sleep, updateNumber } from './libs/lib'
 
 const QUOTE_PRECISION = 10 ** 6
 
@@ -28,7 +29,7 @@ const keypair = Keypair.fromSecretKey(
 const wallet = new Wallet(keypair)
 const sdkConfig = initialize({ env: 'mainnet-beta' })
 const clearingHousePublicKey = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID)
-const client = new ftx ({
+const client = new ftx({
 	apiKey: process.env.apiKeyMain,
 	secret: process.env.secretMain
 })
@@ -39,20 +40,14 @@ const client = new ftx ({
 
 const baseAsset = 'LUNA'
 const symbol = baseAsset + '-PERP'
+const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
+
 const amount = 5
 const limit = 60
-let count = 48
-// LUNA: 0.005, AVAX: 0.005, MATIC: 0.00001, ATOM: 0.001, DOT: 0.002
-const updateNum = 0.005
+const updateNum = updateNumber.ftx.LUNA
 let kairi1 = 0.27
 let kairi2 = 0.27
-let flag1 = false
-let flag2 = false
-let flagOrder1 = true
-let flagOrder2 = true
-let errCount = 0
-let stopCount = 0
-const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
+
 
 
 // ---------------------------------------------------------------------------
@@ -66,37 +61,52 @@ const main = async () => {
 	)
 	await clearingHouse.subscribe()
 
-	let MarketAccount = clearingHouse.getMarket(MarketInfo.marketIndex)
-	let currentMarketPrice = calculateMarkPrice(MarketAccount)
-	let driftPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION)
-	let tx = undefined
+	let flag1 = false
+	let flag2 = false
+	let flagOrder1 = true
+	let flagOrder2 = true
 
+	let orderID1: string
+	let orderID2: string
+	let ftxPrice1: number
+	let ftxPrice2: number
 
+	let tx: Order
+	let status1: string
+	let status2: string
+	let remaining1 = amount
+	let remaining2 = amount
+
+	let count = 0
+	let errCount = 0
+	let stopCount = 0
+
+	// Main loop
 	while (true) {
-		MarketAccount = clearingHouse.getMarket(MarketInfo.marketIndex)
-		currentMarketPrice = calculateMarkPrice(MarketAccount)
-		let tmpdriftPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION)
 
+		let MarketAccount = clearingHouse.getMarket(MarketInfo.marketIndex)
+		let currentMarketPrice = calculateMarkPrice(MarketAccount)
+		let driftPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION)
+		
+		// FTX long Drift short
 		if (count < limit) {
 			if (flagOrder1) {
-				var ftxPrice1 = driftPrice * (100 - kairi1) / 100
+				flagOrder1 = false
+				ftxPrice1 = driftPrice * (100 - kairi1) / 100
 				while (true) {
 					try {
-						tx = await client.createLimitBuyOrder(symbol, amount, ftxPrice1)
-						var orderID1 = tx['id']
+						tx = await client.createLimitBuyOrder(symbol, remaining1, ftxPrice1)
+						orderID1 = tx['id']
 						break
-					} catch (e) {
-						console.log(e.message)
-					}
+					} catch (e) {}
 				}
-				flagOrder1 = false
 			}
 
 			while (true) {
 				try {
 					tx = await client.fetchOrder(orderID1, symbol)
-					var status1 = tx['status']
-					var remaining1 = tx['remaining']
+					status1 = tx['status']
+					remaining1 = tx['remaining']
 					break
 				} catch (e) {}
 			}
@@ -104,12 +114,12 @@ const main = async () => {
 			if (status1 === 'closed') {
 				console.log('ftxでの約定確認')
 				flag1 = true
+				remaining1 = amount
 			
 			} else if (status1 === 'canceled') {
 				flagOrder1 = true
 
-			} else if (tmpdriftPrice !== driftPrice) {
-				driftPrice = tmpdriftPrice
+			} else {
 				let tmpFTXPrice1 = driftPrice * (100 - kairi1) / 100
 
 				if (Math.abs(tmpFTXPrice1 - ftxPrice1) >= updateNum) {
@@ -137,10 +147,8 @@ const main = async () => {
 						if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
 							let words = e.message.split(' ')
 							let info = await connection.getSignatureStatus(words[17], { searchTransactionHistory: true })
-							console.log(info)
 
 							if (info.value) {
-								errCount = 0
 								break
 							} else {
 								errCount += 1
@@ -148,7 +156,6 @@ const main = async () => {
 						}
 
 						if (errCount === 2) {
-							errCount = 0
 							stopCount += 1
 							console.log('pass')
 							break
@@ -156,16 +163,18 @@ const main = async () => {
 					}
 				}
 
-				if (stopCount == 10) {
-					console.log('緊急停止')
+				if (stopCount === 10) {
+					console.log('stop')
 					process.exit(0)
 				}
 				
-				count += 1
 				console.log('driftでの約定確認')
-				console.log(`推定ポジション量, FTXlong: ${amount * count} ${baseAsset}, Driftshort: ${amount * count} ${baseAsset}`)
+				console.log(`Count: ${count}, Position Amount: ${amount * count} ${baseAsset}`)
+
+				count += 1
 				flag1 = false
 				flagOrder1 = true
+				errCount = 0
 
 				if (count === 0) {
 					try {
@@ -182,59 +191,45 @@ const main = async () => {
 
 					while (true) {
 						try {
-							var positions = await client.fetchPositions()
-							break
-						} catch (e) {}
-					}
+							let positions = await client.fetchPositions()
 
-					for (let position of positions) {
-						if (position['symbol'] === symbol){
-				
-							if (Number(position['info']['size']) !== 0) {
-								let closeAmount = position['info']['size']
-								let closeSide = undefined
-				
-								if (position['side'] === 'long') {
-									closeSide = 'sell'
-								} else {
-									closeSide = 'buy'
-								}
+							for (let position of positions) {
+								if (position['symbol'] === symbol){
+						
+									if (Number(position['info']['size']) !== 0) {
+										let closeAmount = position['info']['size']
+										let closeSide: ('buy' | 'sell') = position['side'] === 'long' ? 'sell' : 'buy'
 
-								while (true) {
-									try {
 										await client.createMarketOrder(symbol, closeSide, closeAmount)
-										break
-									} catch (e) {
-										console.log(e.message)
 									}
 								}
 							}
-						}
+
+							break
+						} catch (e) {}
 					}
 				}
 			}
 		}
 
+		// FTX short Drift long
 		if (-limit < count) {
 			if (flagOrder2) {
-				var ftxPrice2 = driftPrice * (100 + kairi2) / 100
+				flagOrder2 = false
 				while (true) {
 					try {
-						tx = await client.createLimitSellOrder(symbol, amount, ftxPrice2)
-						var orderID2 = tx['id']
+						tx = await client.createLimitSellOrder(symbol, remaining2, ftxPrice2)
+						orderID2 = tx['id']
 						break
-					} catch (e) {
-						console.log(e.message)
-					}
+					} catch (e) {}
 				}
-				flagOrder2 = false
 			}
 
 			while (true) {
 				try {
 					tx = await client.fetchOrder(orderID2, symbol)
-					var status2 = tx['status']
-					var remaining2 = tx['remaining']
+					status2 = tx['status']
+					remaining2 = tx['remaining']
 					break
 				} catch (e) {}
 			}
@@ -242,12 +237,12 @@ const main = async () => {
 			if (status2 === 'closed') {
 				console.log('ftxでの約定確認')
 				flag2 = true
+				remaining2 = amount
 			
 			} else if (status2 === 'canceled') {
 				flagOrder2 = true
 			
 			} else {
-				driftPrice = tmpdriftPrice
 				let tmpFTXPrice2 = driftPrice * (100 + kairi2) / 100
 
 				if (Math.abs(tmpFTXPrice2 - ftxPrice2) >= updateNum) {
@@ -275,10 +270,8 @@ const main = async () => {
 						if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
 							let words = e.message.split(' ')
 							let info = await connection.getSignatureStatus(words[17], { searchTransactionHistory: true })
-							console.log(info)
 
 							if (info.value) {
-								errCount = 0
 								break
 							} else {
 								errCount += 1
@@ -286,7 +279,6 @@ const main = async () => {
 						}
 
 						if (errCount === 2) {
-							errCount = 0
 							stopCount += 1
 							console.log('pass')
 							break
@@ -294,16 +286,18 @@ const main = async () => {
 					}
 				}
 
-				if (stopCount == 10) {
-					console.log('緊急停止')
+				if (stopCount === 10) {
+					console.log('stop')
 					process.exit(0)
 				}
 				
-				count -= 1
+				
 				console.log('driftでの約定確認')
-				console.log(`推定ポジション量, FTXlong: ${amount * count} ${baseAsset}, Driftshort: ${amount * count} ${baseAsset}`)
+				console.log(`Count: ${count}, Position Amount: ${amount * count} ${baseAsset}`)
+				count -= 1
 				flag2 = false
 				flagOrder2 = true
+				errCount = 0
 
 				if (count === 0) {
 					try {
@@ -320,45 +314,33 @@ const main = async () => {
 
 					while (true) {
 						try {
-							var positions = await client.fetchPositions()
-							break
-						} catch (e) {}
-					}
+							let positions = await client.fetchPositions()
 
-					for (let position of positions) {
-						if (position['symbol'] === symbol){
-				
-							if (Number(position['info']['size']) !== 0) {
-								let closeAmount = position['info']['size']
-								let closeSide = undefined
-				
-								if (position['side'] === 'long') {
-									closeSide = 'sell'
-								} else {
-									closeSide = 'buy'
-								}
+							for (let position of positions) {
+								if (position['symbol'] === symbol){
+						
+									if (Number(position['info']['size']) !== 0) {
+										let closeAmount = position['info']['size']
+										let closeSide: ('buy' | 'sell') = position.side === 'long' ? 'sell' : 'buy'
 
-								while (true) {
-									try {
 										await client.createMarketOrder(symbol, closeSide, closeAmount)
-										break
-									} catch (e) {
-										console.log(e.message)
 									}
 								}
 							}
-						}
+
+							break
+						} catch (e) {}
 					}
 				}
 			}
 		}
 
-		await sleep(100)
+		// await sleep(100)
 	}
 }
 
 
-const check = async () => {
+const check = async (base: number, delta: number) => {
 	const clearingHouse = ClearingHouse.from(
 		connection,
 		wallet,
@@ -381,26 +363,24 @@ const check = async () => {
 				let num = FundingRateFTX - FundingRateDrift
 
 				if (num <= -0.01) {
-					kairi1 = 0.4
-					kairi2 = 0.2
+					kairi1 = base + delta * 4
+					kairi2 = base - delta * 2
 				} else if (-0.01 < num && num < -0.005) {
-					kairi1 = 0.335
-					kairi2 = 0.235
+					kairi1 = base + delta * 2
+					kairi2 = base - delta
 				} else if (-0.005 <= num && num <= 0.005) {
-					kairi1 = 0.27
-					kairi2 = 0.27
+					kairi1 = base
+					kairi2 = base
 				} else if (0.005 < num && num < 0.01) {
-					kairi1 = 0.235
-					kairi2 = 0.335
+					kairi1 = base - delta
+					kairi2 = base + delta * 2
 				} else {
-					kairi1 = 0.2
-					kairi2 = 0.4
+					kairi1 = base - delta * 2
+					kairi2 = base + delta * 4
 				}
 
 				break
-			} catch(e) {
-				console.log(e)
-			}
+			} catch(e) {}
 		}
 
 		await sleep(600000)
@@ -412,4 +392,4 @@ const check = async () => {
 
 
 main()
-check()
+check(0.27, 4)
