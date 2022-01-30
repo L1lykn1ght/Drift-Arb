@@ -7,7 +7,6 @@ import {
     convertBaseAssetAmountToNumber,
     QUOTE_PRECISION
 } from "@drift-labs/sdk"
-import { BN } from "@project-serum/anchor"
 import { Connection, Keypair, PublicKey } from "@solana/web3.js"
 
 

@@ -1,9 +1,8 @@
 require('dotenv').config()
 import axios from 'axios'
 import { ftx } from "ccxt"
-import { Wallet } from '@project-serum/anchor'
 import { Connection, Keypair, PublicKey } from '@solana/web3.js'
-import { ClearingHouse, ClearingHouseUser, initialize, convertToNumber, QUOTE_PRECISION } from '@drift-labs/sdk'
+import { Wallet, ClearingHouse, ClearingHouseUser, initialize, convertToNumber, QUOTE_PRECISION } from '@drift-labs/sdk'
 import { sleep } from './libs/lib'
 
 

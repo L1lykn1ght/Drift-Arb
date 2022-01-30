@@ -42,8 +42,8 @@ const baseAsset = 'LUNA'
 const symbol = baseAsset + '-PERP'
 const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 
-const amount = 5
-const limit = 60
+const amount = 1
+const limit = 10
 const updateNum = updateNumber.ftx.LUNA
 let kairi1 = 0.27
 let kairi2 = 0.27
