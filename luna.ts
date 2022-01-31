@@ -38,9 +38,8 @@ const client = new ftx({
 // ---------------------------------------------------------------------------
 
 
-const amount = 5
-const limit = 10
-const updateNum = updateNumber.ftx.LUNA
+const amount = 5    // baseAsset
+const limit = 10    // max position: amount * limit
 let diff1 = 0.27
 let diff2 = 0.27
 
@@ -56,6 +55,7 @@ const loop = async (baseAsset: string) => {
 	)
 	await clearingHouse.subscribe()
 
+	const updateNum = updateNumber['ftx'][baseAsset]
 	const symbol = baseAsset + '-PERP'
 	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 

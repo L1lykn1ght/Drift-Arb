@@ -8,6 +8,7 @@ export const updateNumber = {
         AVAX: 0.005,
         MATIC: 0.00001,
         ATOM: 0.001,
-        DOT: 0.002
+        DOT: 0.002,
+        ADA: 0.000005
     }
 }
