@@ -39,7 +39,7 @@ const client = new ftx({
 
 
 const baseAsset = 'SOL'
-const amount = 1    // baseAsset
+const amount = 1    // baseAsset(not USDC)
 const limit = 10    // max position: amount * limit
 let diff1 = 0.25
 let diff2 = 0.25
@@ -60,23 +60,36 @@ const loop = async (baseAsset: string) => {
 	const symbol = baseAsset + '-PERP'
 	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 
+	// If true, executing drift order
 	let flag1 = false
 	let flag2 = false
+
+	// If true, placing FTX limit order
 	let flagOrder1 = true
 	let flagOrder2 = true
 
+	// OrderID of FTX open order
 	let orderID1: string
 	let orderID2: string
+
+	// Price of FTX open order
 	let ftxPrice1: number
 	let ftxPrice2: number
 
 	let tx: Order
+
+	// condition of FTX open order
 	let status1: string
 	let status2: string
 	let remaining1 = amount
 	let remaining2 = amount
 
+	// -limit <= count <= limit
 	let count = 0
+
+	// If drift order is not confirmed in 30 seconds, errCount += 1
+	// If errCount == 2, (stopCount += 1 and consider the order as executed(i.e break))
+	// If stopCount == 10, crash
 	let errCount = 0
 	let stopCount = 0
 
@@ -138,7 +151,6 @@ const loop = async (baseAsset: string) => {
 							new BN(driftPrice * amount * QUOTE_PRECISION),
 							MarketInfo.marketIndex
 						)
-						errCount = 0
 						break
 					} catch (e) {
 						console.log(e.message)
@@ -175,6 +187,7 @@ const loop = async (baseAsset: string) => {
 				flagOrder1 = true
 				errCount = 0
 
+				// Make sure that both FTX and Drift positions are closed
 				if (count === 0) {
 					try {
 						await clearingHouse.closePosition(
@@ -262,7 +275,6 @@ const loop = async (baseAsset: string) => {
 							new BN(driftPrice * amount * QUOTE_PRECISION),
 							MarketInfo.marketIndex
 						)
-						errCount = 0
 						break
 					} catch (e) {
 						console.log(e.message)
