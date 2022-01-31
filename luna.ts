@@ -41,8 +41,8 @@ const client = new ftx({
 const amount = 5
 const limit = 10
 const updateNum = updateNumber.ftx.LUNA
-let kairi1 = 0.27
-let kairi2 = 0.27
+let diff1 = 0.27
+let diff2 = 0.27
 
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ const loop = async (baseAsset: string) => {
 		if (count < limit) {
 			if (flagOrder1) {
 				flagOrder1 = false
-				ftxPrice1 = driftPrice * (100 - kairi1) / 100
+				ftxPrice1 = driftPrice * (100 - diff1) / 100
 				while (true) {
 					try {
 						tx = await client.createLimitBuyOrder(symbol, remaining1, ftxPrice1)
@@ -110,7 +110,7 @@ const loop = async (baseAsset: string) => {
 			}
 
 			if (status1 === 'closed') {
-				console.log('ftxでの約定確認')
+				console.log('FTX order executed')
 				flag1 = true
 				remaining1 = amount
 			
@@ -118,7 +118,7 @@ const loop = async (baseAsset: string) => {
 				flagOrder1 = true
 
 			} else {
-				let tmpFTXPrice1 = driftPrice * (100 - kairi1) / 100
+				let tmpFTXPrice1 = driftPrice * (100 - diff1) / 100
 
 				if (Math.abs(tmpFTXPrice1 - ftxPrice1) >= updateNum) {
 					try {
@@ -167,7 +167,7 @@ const loop = async (baseAsset: string) => {
 				}
 				
 				count += 1
-				console.log('driftでの約定確認')
+				console.log('Drift order executed')
 				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
 
 				flag1 = false
@@ -214,7 +214,7 @@ const loop = async (baseAsset: string) => {
 		if (-limit < count) {
 			if (flagOrder2) {
 				flagOrder2 = false
-				ftxPrice2 = driftPrice * (100 + kairi2) / 100
+				ftxPrice2 = driftPrice * (100 + diff2) / 100
 				while (true) {
 					try {
 						tx = await client.createLimitSellOrder(symbol, remaining2, ftxPrice2)
@@ -234,7 +234,7 @@ const loop = async (baseAsset: string) => {
 			}
 			
 			if (status2 === 'closed') {
-				console.log('ftxでの約定確認')
+				console.log('FTX order executed')
 				flag2 = true
 				remaining2 = amount
 			
@@ -242,7 +242,7 @@ const loop = async (baseAsset: string) => {
 				flagOrder2 = true
 			
 			} else {
-				let tmpFTXPrice2 = driftPrice * (100 + kairi2) / 100
+				let tmpFTXPrice2 = driftPrice * (100 + diff2) / 100
 
 				if (Math.abs(tmpFTXPrice2 - ftxPrice2) >= updateNum) {
 					try {
@@ -291,7 +291,7 @@ const loop = async (baseAsset: string) => {
 				}
 				
 				count -= 1
-				console.log('driftでの約定確認')
+				console.log('Drift order executed')
 				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
 
 				flag2 = false
@@ -366,20 +366,20 @@ const check = async (baseAsset: string, base: number, delta: number) => {
 				let num = FundingRateFTX - FundingRateDrift
 
 				if (num <= -0.01) {
-					kairi1 = base + delta * 4
-					kairi2 = base - delta * 2
+					diff1 = base + delta * 4
+					diff2 = base - delta * 2
 				} else if (-0.01 < num && num < -0.005) {
-					kairi1 = base + delta * 2
-					kairi2 = base - delta
+					diff1 = base + delta * 2
+					diff2 = base - delta
 				} else if (-0.005 <= num && num <= 0.005) {
-					kairi1 = base
-					kairi2 = base
+					diff1 = base
+					diff2 = base
 				} else if (0.005 < num && num < 0.01) {
-					kairi1 = base - delta
-					kairi2 = base + delta * 2
+					diff1 = base - delta
+					diff2 = base + delta * 2
 				} else {
-					kairi1 = base - delta * 2
-					kairi2 = base + delta * 4
+					diff1 = base - delta * 2
+					diff2 = base + delta * 4
 				}
 
 				break
