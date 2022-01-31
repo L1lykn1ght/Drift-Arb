@@ -38,10 +38,11 @@ const client = new ftx({
 // ---------------------------------------------------------------------------
 
 
-const amount = 5    // baseAsset
+const baseAsset = 'SOL'
+const amount = 1    // baseAsset
 const limit = 10    // max position: amount * limit
-let diff1 = 0.27
-let diff2 = 0.27
+let diff1 = 0.25
+let diff2 = 0.25
 
 
 // ---------------------------------------------------------------------------
@@ -394,5 +395,5 @@ const check = async (baseAsset: string, base: number, delta: number) => {
 // ---------------------------------------------------------------------------
 
 
-loop('LUNA')
-check('LUNA', 0.27, 0.04)
+loop(baseAsset)
+check(baseAsset, 0.25, 0.05)
