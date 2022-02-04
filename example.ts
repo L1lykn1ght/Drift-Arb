@@ -14,9 +14,44 @@ import {
 	convertToNumber,
 	MARK_PRICE_PRECISION
 } from '@drift-labs/sdk'
-import { sleep, updateNumber } from './libs/lib'
+import { sleep, updateNumber, baseAssets } from './libs/lib'
+import { question, keyInSelect, keyInYN } from 'readline-sync'
 
 const QUOTE_PRECISION = 10 ** 6
+
+
+// ---------------------------------------------------------------------------
+
+
+let index = keyInSelect(baseAssets, 'Select Base Asset')
+const baseAsset = baseAssets[index]
+
+if (index === -1) { process.exit(0) }
+
+
+let amount = question(`Enter amount of ${baseAssets[index]} per tx (in number): `)
+amount = parseFloat(amount)
+
+if (isNaN(amount)) {
+    console.log('Type in number!')
+    process.exit(0)
+}
+
+
+let limit = question(`Emter limit of count (in number): `)
+limit = parseFloat(limit)
+
+if (isNaN(limit)) {
+	console.log('Type in number!')
+	process.exit(0)
+}
+
+
+if (keyInYN(`Max position size is ${amount * limit} ${baseAsset}, is this right?`)) {
+	console.log('Bot starts running')
+} else {
+	process.exit(0)
+}
 
 
 // ---------------------------------------------------------------------------
@@ -34,15 +69,8 @@ const client = new ftx({
 	secret: process.env.secretMain
 })
 
-
-// ---------------------------------------------------------------------------
-
-
-const baseAsset = 'SOL'
-const amount = 1    // baseAsset(not USDC)
-const limit = 10    // max position: amount * limit
-let diff1 = 0.25
-let diff2 = 0.25
+let diff1 = 1
+let diff2 = 1
 
 
 // ---------------------------------------------------------------------------
@@ -408,4 +436,4 @@ const check = async (baseAsset: string, base: number, delta: number) => {
 
 
 loop(baseAsset)
-check(baseAsset, 0.25, 0.05)
+// check(baseAsset, 0.25, 0.05)
