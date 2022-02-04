@@ -69,8 +69,8 @@ const client = new ftx({
 	secret: process.env.secret
 })
 
-let diff1 = 1
-let diff2 = 1
+let diff1 = 0.3
+let diff2 = 0.3
 
 
 // ---------------------------------------------------------------------------
@@ -436,4 +436,4 @@ const check = async (baseAsset: string, base: number, delta: number) => {
 
 
 loop(baseAsset)
-// check(baseAsset, 0.25, 0.05)
+check(baseAsset, 0.3, 0.05)
