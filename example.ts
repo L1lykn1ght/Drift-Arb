@@ -29,8 +29,8 @@ const baseAsset = baseAssets[index]
 if (index === -1) { process.exit(0) }
 
 
-let amount = question(`Enter amount of ${baseAssets[index]} per tx (in number): `)
-amount = parseFloat(amount)
+let tmpAmount = question(`Enter amount of ${baseAssets[index]} per tx (in number): `)
+let amount = parseFloat(tmpAmount)
 
 if (isNaN(amount)) {
     console.log('Type in number!')
@@ -38,8 +38,8 @@ if (isNaN(amount)) {
 }
 
 
-let limit = question(`Emter limit of count (in number): `)
-limit = parseFloat(limit)
+let tmpLimit = question(`Emter limit of count (in number): `)
+let limit = parseFloat(tmpLimit)
 
 if (isNaN(limit)) {
 	console.log('Type in number!')
@@ -59,14 +59,14 @@ if (keyInYN(`Max position size is ${amount * limit} ${baseAsset}, is this right?
 
 const connection = new Connection(process.env.RPCendpoint, 'processed')
 const keypair = Keypair.fromSecretKey(
-	Uint8Array.from(JSON.parse(process.env.secretKeyMain))
+	Uint8Array.from(JSON.parse(process.env.secretKey))
 )
 const wallet = new Wallet(keypair)
 const sdkConfig = initialize({ env: 'mainnet-beta' })
 const clearingHousePublicKey = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID)
 const client = new ftx({
-	apiKey: process.env.apiKeyMain,
-	secret: process.env.secretMain
+	apiKey: process.env.apiKey,
+	secret: process.env.secret
 })
 
 let diff1 = 1
