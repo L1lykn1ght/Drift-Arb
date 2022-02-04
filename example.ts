@@ -38,7 +38,7 @@ if (isNaN(amount)) {
 }
 
 
-let tmpLimit = question(`Emter limit of count (in number): `)
+let tmpLimit = question(`Enter limit of count (in number): `)
 let limit = parseFloat(tmpLimit)
 
 if (isNaN(limit)) {
