@@ -13,7 +13,8 @@ export const baseAssets = [
     'ATOM',
     'DOT',
     'ADA',
-    'ALGO'
+    'ALGO',
+    'FTT'
 ]
 
 export const updateNumber = {
@@ -28,6 +29,7 @@ export const updateNumber = {
         ATOM: 0.001,
         DOT: 0.002,
         ADA: 0.000005,
-        ALGO: 0.0002
+        ALGO: 0.0002,
+        FTT: 0.002
     }
 }
