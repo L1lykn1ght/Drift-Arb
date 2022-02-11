@@ -6,7 +6,6 @@ import {
 	Wallet,
 	calculateMarkPrice,
 	calculateEstimatedFundingRate,
-	ClearingHouse,
 	getClearingHouse,
 	getWebSocketClearingHouseConfig,
 	PythClient,
@@ -80,8 +79,8 @@ const client = new ftx({
 	secret: process.env.secret
 })
 
-let diff1 = 0.3
-let diff2 = 0.3
+let diff1 = 0.25
+let diff2 = 0.25
 
 
 // ---------------------------------------------------------------------------
@@ -149,6 +148,7 @@ const loop = async (baseAsset: string) => {
 				}
 			}
 
+			// get FTX limit order status
 			while (true) {
 				try {
 					tx = await client.fetchOrder(orderID1, symbol)
@@ -178,6 +178,7 @@ const loop = async (baseAsset: string) => {
 				}
 			}
 
+			// execute drift order
 			if (flag1) {
 				while (true) {
 					try {
@@ -273,6 +274,7 @@ const loop = async (baseAsset: string) => {
 				}
 			}
 
+			// get FTX limit order status
 			while (true) {
 				try {
 					tx = await client.fetchOrder(orderID2, symbol)
@@ -302,6 +304,7 @@ const loop = async (baseAsset: string) => {
 				}
 			}
 
+			// execute drift order
 			if (flag2) {
 				while (true) {
 					try {
@@ -439,4 +442,4 @@ const check = async (baseAsset: string, base: number, delta: number) => {
 
 
 loop(baseAsset)
-check(baseAsset, 0.3, 0.05)
+check(baseAsset, 0.25, 0.05)
