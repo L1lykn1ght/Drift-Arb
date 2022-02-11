@@ -7,6 +7,8 @@ import {
 	calculateMarkPrice,
 	calculateEstimatedFundingRate,
 	ClearingHouse,
+	getClearingHouse,
+	getWebSocketClearingHouseConfig,
 	PythClient,
 	initialize,
 	Markets,
@@ -58,12 +60,21 @@ if (keyInYN(`Max position size is ${amount * limit} ${baseAsset}, is this right?
 
 
 const connection = new Connection(process.env.RPCendpoint, 'processed')
+
 const keypair = Keypair.fromSecretKey(
 	Uint8Array.from(JSON.parse(process.env.secretKey))
 )
 const wallet = new Wallet(keypair)
+
 const sdkConfig = initialize({ env: 'mainnet-beta' })
-const clearingHousePublicKey = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID)
+const clearingHouseProgramId = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID)
+
+const clearingHouseConfig = getWebSocketClearingHouseConfig(
+	connection,
+	wallet,
+	clearingHouseProgramId
+)
+
 const client = new ftx({
 	apiKey: process.env.apiKey,
 	secret: process.env.secret
@@ -77,11 +88,7 @@ let diff2 = 0.3
 
 
 const loop = async (baseAsset: string) => {
-	const clearingHouse = ClearingHouse.from(
-		connection,
-		wallet,
-		clearingHousePublicKey
-	)
+	const clearingHouse = getClearingHouse(clearingHouseConfig)
 	await clearingHouse.subscribe()
 
 	const updateNum = updateNumber['ftx'][baseAsset]
@@ -381,11 +388,7 @@ const loop = async (baseAsset: string) => {
 
 
 const check = async (baseAsset: string, base: number, delta: number) => {
-	const clearingHouse = ClearingHouse.from(
-		connection,
-		wallet,
-		clearingHousePublicKey
-	)
+	const clearingHouse = getClearingHouse(clearingHouseConfig)
 	await clearingHouse.subscribe()
 
 	const pythClient = new PythClient(connection)
