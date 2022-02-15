@@ -24,6 +24,8 @@ const QUOTE_PRECISION = 10 ** 6
 // ---------------------------------------------------------------------------
 
 
+// receive input about token, lot amount, and max count
+
 let index = keyInSelect(baseAssets, 'Select Base Asset')
 const baseAsset = baseAssets[index]
 
@@ -39,7 +41,7 @@ if (isNaN(amount)) {
 }
 
 
-let tmpLimit = question(`Enter limit of count (in number): `)
+let tmpLimit = question(`Enter max count (in number): `)
 let limit = parseFloat(tmpLimit)
 
 if (isNaN(limit)) {
@@ -86,7 +88,7 @@ let diff2 = 0.25
 // ---------------------------------------------------------------------------
 
 
-const loop = async (baseAsset: string) => {
+const main = async (baseAsset: string) => {
 	const clearingHouse = getClearingHouse(clearingHouseConfig)
 	await clearingHouse.subscribe()
 
@@ -127,6 +129,19 @@ const loop = async (baseAsset: string) => {
 	let errCount = 0
 	let stopCount = 0
 
+
+	// place limit order (CEX)
+	const placeLimitOrder = async (side: Order['side'], amount: number, price: number) => {
+		while (true) {
+			try {
+				tx = await client.createLimitOrder(symbol, side, amount, price)
+				orderID1 = tx['id']
+				break
+			} catch (e) {}
+		}
+	}
+
+
 	// Main loop
 	while (true) {
 
@@ -139,13 +154,7 @@ const loop = async (baseAsset: string) => {
 			if (flagOrder1) {
 				flagOrder1 = false
 				ftxPrice1 = driftPrice * (100 - diff1) / 100
-				while (true) {
-					try {
-						tx = await client.createLimitBuyOrder(symbol, remaining1, ftxPrice1)
-						orderID1 = tx['id']
-						break
-					} catch (e) {}
-				}
+				await placeLimitOrder('buy', remaining1, ftxPrice1)
 			}
 
 			// get FTX limit order status
@@ -265,13 +274,7 @@ const loop = async (baseAsset: string) => {
 			if (flagOrder2) {
 				flagOrder2 = false
 				ftxPrice2 = driftPrice * (100 + diff2) / 100
-				while (true) {
-					try {
-						tx = await client.createLimitSellOrder(symbol, remaining2, ftxPrice2)
-						orderID2 = tx['id']
-						break
-					} catch (e) {}
-				}
+				await placeLimitOrder('sell', remaining2, ftxPrice2)
 			}
 
 			// get FTX limit order status
@@ -441,5 +444,5 @@ const check = async (baseAsset: string, base: number, delta: number) => {
 // ---------------------------------------------------------------------------
 
 
-loop(baseAsset)
+main(baseAsset)
 check(baseAsset, 0.25, 0.05)
