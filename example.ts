@@ -98,13 +98,13 @@ const main = async (baseAsset: string) => {
 	const symbol = baseAsset + '-PERP'
 	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 
-	// If true, executing drift order
-	let flagDriftSell = false
-	let flagDriftBuy = false
-
 	// If true, placing FTX limit order
 	let flagFTXBuy = true
 	let flagFTXSell = true
+
+	// If true, executing drift order
+	let flagDriftSell = false
+	let flagDriftBuy = false
 
 	// OrderID of FTX limit order
 	let orderIDBuy: string
@@ -132,8 +132,8 @@ const main = async (baseAsset: string) => {
 	let stopCount = 0
 
 
-	// place limit order (CEX)
-	const placeLimitOrder = async (side: Order['side'], amount: number, price: number) => {
+	// place limit order (FTX)
+	const makeFTXOrder = async (side: Order['side'], amount: number, price: number) => {
 		while (true) {
 			try {
 				tx = await client.createLimitOrder(symbol, side, amount, price)
@@ -193,12 +193,13 @@ const main = async (baseAsset: string) => {
 		let currentMarketPrice = calculateMarkPrice(MarketAccount)
 		let driftPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION)
 		
-		// FTX long Drift short
+		// FTX buy Drift sell
 		if (count < limit) {
+			// place FTX buy limit order
 			if (flagFTXBuy) {
 				flagFTXBuy = false
 				ftxPriceBuy = driftPrice * (100 - diff1) / 100
-				await placeLimitOrder('buy', remainingBuy, ftxPriceBuy)
+				await makeFTXOrder('buy', remainingBuy, ftxPriceBuy)
 			}
 
 			// get FTX limit order status
@@ -231,7 +232,7 @@ const main = async (baseAsset: string) => {
 				}
 			}
 
-			// execute drift order
+			// execute drift sell order
 			if (flagDriftSell) {
 				while (true) {
 					try {
@@ -283,12 +284,13 @@ const main = async (baseAsset: string) => {
 			}
 		}
 
-		// FTX short Drift long
+		// FTX sell Drift buy
 		if (-limit < count) {
+			// place FTX sell limit order
 			if (flagFTXSell) {
 				flagFTXSell = false
 				ftxPriceSell = driftPrice * (100 + diff2) / 100
-				await placeLimitOrder('sell', remainingSell, ftxPriceSell)
+				await makeFTXOrder('sell', remainingSell, ftxPriceSell)
 			}
 
 			// get FTX limit order status
@@ -321,7 +323,7 @@ const main = async (baseAsset: string) => {
 				}
 			}
 
-			// execute drift order
+			// execute drift buy order
 			if (flagDriftBuy) {
 				while (true) {
 					try {
