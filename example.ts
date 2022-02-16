@@ -147,6 +147,44 @@ const main = async (baseAsset: string) => {
 	}
 
 
+	// When count reaches zero, check if all positions are closed.
+	const closeAllPositions = async () => {
+		// close drift position
+		try {
+			await clearingHouse.closePosition(
+				MarketInfo.marketIndex
+			)
+		} catch (e) {
+			console.log(e.message)
+
+			if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
+				console.log('pass')
+			}
+		}
+
+		//close FTX position
+		while (true) {
+			try {
+				let positions = await client.fetchPositions()
+
+				for (let position of positions) {
+					if (position['symbol'] === symbol) {
+			
+						if (Number(position['info']['size']) !== 0) {
+							let closeAmount = position['info']['size']
+							let closeSide: ('buy' | 'sell') = position['side'] === 'long' ? 'sell' : 'buy'
+
+							await client.createMarketOrder(symbol, closeSide, closeAmount)
+						}
+					}
+				}
+
+				break
+			} catch (e) {}
+		}
+	}
+
+
 	// Main loop
 	while (true) {
 
@@ -239,37 +277,7 @@ const main = async (baseAsset: string) => {
 
 				// Make sure that both FTX and Drift positions are closed
 				if (count === 0) {
-					try {
-						await clearingHouse.closePosition(
-							MarketInfo.marketIndex
-						)
-					} catch (e) {
-						console.log(e.message)
-
-						if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
-							console.log('pass')
-						}
-					}
-
-					while (true) {
-						try {
-							let positions = await client.fetchPositions()
-
-							for (let position of positions) {
-								if (position['symbol'] === symbol){
-						
-									if (Number(position['info']['size']) !== 0) {
-										let closeAmount = position['info']['size']
-										let closeSide: ('buy' | 'sell') = position['side'] === 'long' ? 'sell' : 'buy'
-
-										await client.createMarketOrder(symbol, closeSide, closeAmount)
-									}
-								}
-							}
-
-							break
-						} catch (e) {}
-					}
+					await closeAllPositions()
 				}
 			}
 		}
@@ -358,37 +366,7 @@ const main = async (baseAsset: string) => {
 				errCount = 0
 
 				if (count === 0) {
-					try {
-						await clearingHouse.closePosition(
-							MarketInfo.marketIndex
-						)
-					} catch (e) {
-						console.log(e.message)
-
-						if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
-							console.log('pass')
-						}
-					}
-
-					while (true) {
-						try {
-							let positions = await client.fetchPositions()
-
-							for (let position of positions) {
-								if (position['symbol'] === symbol){
-						
-									if (Number(position['info']['size']) !== 0) {
-										let closeAmount = position['info']['size']
-										let closeSide: ('buy' | 'sell') = position.side === 'long' ? 'sell' : 'buy'
-
-										await client.createMarketOrder(symbol, closeSide, closeAmount)
-									}
-								}
-							}
-
-							break
-						} catch (e) {}
-					}
+					await closeAllPositions()
 				}
 			}
 		}
