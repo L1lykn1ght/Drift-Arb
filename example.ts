@@ -99,28 +99,28 @@ const main = async (baseAsset: string) => {
 	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 
 	// If true, executing drift order
-	let flag1 = false
-	let flag2 = false
+	let flagDriftSell = false
+	let flagDriftBuy = false
 
 	// If true, placing FTX limit order
-	let flagOrder1 = true
-	let flagOrder2 = true
+	let flagFTXBuy = true
+	let flagFTXSell = true
 
-	// OrderID of FTX open order
-	let orderID1: string
-	let orderID2: string
+	// OrderID of FTX limit order
+	let orderIDBuy: string
+	let orderIDSell: string
 
-	// Price of FTX open order
-	let ftxPrice1: number
-	let ftxPrice2: number
+	// Price of FTX limit order
+	let ftxPriceBuy: number
+	let ftxPriceSell: number
 
 	let tx: Order
 
-	// condition of FTX open order
-	let status1: string
-	let status2: string
-	let remaining1 = amount
-	let remaining2 = amount
+	// condition of FTX limit order
+	let statusBuy: string
+	let statusSell: string
+	let remainingBuy = amount
+	let remainingSell = amount
 
 	// -limit <= count <= limit
 	let count = 0
@@ -138,9 +138,9 @@ const main = async (baseAsset: string) => {
 			try {
 				tx = await client.createLimitOrder(symbol, side, amount, price)
 				if (side == 'buy') {
-					orderID1 = tx['id']
+					orderIDBuy = tx['id']
 				} else {
-					orderID2 = tx['id']
+					orderIDSell = tx['id']
 				}
 				break
 			} catch (e) {}
@@ -195,44 +195,44 @@ const main = async (baseAsset: string) => {
 		
 		// FTX long Drift short
 		if (count < limit) {
-			if (flagOrder1) {
-				flagOrder1 = false
-				ftxPrice1 = driftPrice * (100 - diff1) / 100
-				await placeLimitOrder('buy', remaining1, ftxPrice1)
+			if (flagFTXBuy) {
+				flagFTXBuy = false
+				ftxPriceBuy = driftPrice * (100 - diff1) / 100
+				await placeLimitOrder('buy', remainingBuy, ftxPriceBuy)
 			}
 
 			// get FTX limit order status
 			while (true) {
 				try {
-					tx = await client.fetchOrder(orderID1, symbol)
-					status1 = tx['status']
-					remaining1 = tx['remaining']
+					tx = await client.fetchOrder(orderIDBuy, symbol)
+					statusBuy = tx['status']
+					remainingBuy = tx['remaining']
 					break
 				} catch (e) {}
 			}
 
-			if (status1 === 'closed') {
+			if (statusBuy === 'closed') {
 				console.log('FTX order executed')
-				flag1 = true
-				remaining1 = amount
+				flagDriftSell = true
+				remainingBuy = amount
 			
-			} else if (status1 === 'canceled') {
-				flagOrder1 = true
+			} else if (statusBuy === 'canceled') {
+				flagFTXBuy = true
 
 			} else {
 				let tmpFTXPrice1 = driftPrice * (100 - diff1) / 100
 
-				if (Math.abs(tmpFTXPrice1 - ftxPrice1) >= updateNum) {
+				if (Math.abs(tmpFTXPrice1 - ftxPriceBuy) >= updateNum) {
 					try {
-						ftxPrice1 = tmpFTXPrice1
-						tx = await client.editOrder(orderID1, symbol, 'limit', 'buy', remaining1, ftxPrice1)
-						orderID1 = tx['id']
+						ftxPriceBuy = tmpFTXPrice1
+						tx = await client.editOrder(orderIDBuy, symbol, 'limit', 'buy', remainingBuy, ftxPriceBuy)
+						orderIDBuy = tx['id']
 					} catch (e) {}
 				}
 			}
 
 			// execute drift order
-			if (flag1) {
+			if (flagDriftSell) {
 				while (true) {
 					try {
 						await clearingHouse.openPosition(
@@ -272,8 +272,8 @@ const main = async (baseAsset: string) => {
 				console.log('Drift order executed')
 				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
 
-				flag1 = false
-				flagOrder1 = true
+				flagDriftSell = false
+				flagFTXBuy = true
 				errCount = 0
 
 				// Make sure that both FTX and Drift positions are closed
@@ -285,44 +285,44 @@ const main = async (baseAsset: string) => {
 
 		// FTX short Drift long
 		if (-limit < count) {
-			if (flagOrder2) {
-				flagOrder2 = false
-				ftxPrice2 = driftPrice * (100 + diff2) / 100
-				await placeLimitOrder('sell', remaining2, ftxPrice2)
+			if (flagFTXSell) {
+				flagFTXSell = false
+				ftxPriceSell = driftPrice * (100 + diff2) / 100
+				await placeLimitOrder('sell', remainingSell, ftxPriceSell)
 			}
 
 			// get FTX limit order status
 			while (true) {
 				try {
-					tx = await client.fetchOrder(orderID2, symbol)
-					status2 = tx['status']
-					remaining2 = tx['remaining']
+					tx = await client.fetchOrder(orderIDSell, symbol)
+					statusSell = tx['status']
+					remainingSell = tx['remaining']
 					break
 				} catch (e) {}
 			}
 			
-			if (status2 === 'closed') {
+			if (statusSell === 'closed') {
 				console.log('FTX order executed')
-				flag2 = true
-				remaining2 = amount
+				flagDriftBuy = true
+				remainingSell = amount
 			
-			} else if (status2 === 'canceled') {
-				flagOrder2 = true
+			} else if (statusSell === 'canceled') {
+				flagFTXSell = true
 			
 			} else {
 				let tmpFTXPrice2 = driftPrice * (100 + diff2) / 100
 
-				if (Math.abs(tmpFTXPrice2 - ftxPrice2) >= updateNum) {
+				if (Math.abs(tmpFTXPrice2 - ftxPriceSell) >= updateNum) {
 					try {
-						ftxPrice2 = tmpFTXPrice2
-						tx = await client.editOrder(orderID2, symbol, 'limit', 'sell', remaining2, ftxPrice2)
-						orderID2 = tx['id']
+						ftxPriceSell = tmpFTXPrice2
+						tx = await client.editOrder(orderIDSell, symbol, 'limit', 'sell', remainingSell, ftxPriceSell)
+						orderIDSell = tx['id']
 					} catch (e) {}
 				}
 			}
 
 			// execute drift order
-			if (flag2) {
+			if (flagDriftBuy) {
 				while (true) {
 					try {
 						await clearingHouse.openPosition(
@@ -362,8 +362,8 @@ const main = async (baseAsset: string) => {
 				console.log('Drift order executed')
 				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
 
-				flag2 = false
-				flagOrder2 = true
+				flagDriftBuy = false
+				flagFTXSell = true
 				errCount = 0
 
 				if (count === 0) {
