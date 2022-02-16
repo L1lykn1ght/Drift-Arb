@@ -148,6 +148,42 @@ const main = async (baseAsset: string) => {
 	}
 
 
+	// make drift order
+	const makeDriftOrder = async (side: Order['side'], driftPrice: number) => {
+		let direction = side == 'buy' ? PositionDirection.LONG : PositionDirection.SHORT
+
+		while (true) {
+			try {
+				await clearingHouse.openPosition(
+					direction,
+					new BN(driftPrice * amount * QUOTE_PRECISION),
+					MarketInfo.marketIndex
+				)
+				break
+			} catch (e) {
+				console.log(e.message)
+
+				if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
+					let words = e.message.split(' ')
+					let info = await connection.getSignatureStatus(words[17], { searchTransactionHistory: true })
+
+					if (info.value) {
+						break
+					} else {
+						errCount += 1
+					}
+				}
+
+				if (errCount === 2) {
+					stopCount += 1
+					console.log('pass')
+					break
+				}
+			}
+		}
+	}
+
+
 	// When count reaches zero, check if all positions are closed.
 	const closeAllPositions = async () => {
 		// close drift position
@@ -234,35 +270,7 @@ const main = async (baseAsset: string) => {
 
 			// execute drift sell order
 			if (flagDriftSell) {
-				while (true) {
-					try {
-						await clearingHouse.openPosition(
-							PositionDirection.SHORT,
-							new BN(driftPrice * amount * QUOTE_PRECISION),
-							MarketInfo.marketIndex
-						)
-						break
-					} catch (e) {
-						console.log(e.message)
-
-						if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
-							let words = e.message.split(' ')
-							let info = await connection.getSignatureStatus(words[17], { searchTransactionHistory: true })
-
-							if (info.value) {
-								break
-							} else {
-								errCount += 1
-							}
-						}
-
-						if (errCount === 2) {
-							stopCount += 1
-							console.log('pass')
-							break
-						}
-					}
-				}
+				await makeDriftOrder('sell', driftPrice)
 
 				if (stopCount === 10) {
 					console.log('stop')
@@ -325,35 +333,7 @@ const main = async (baseAsset: string) => {
 
 			// execute drift buy order
 			if (flagDriftBuy) {
-				while (true) {
-					try {
-						await clearingHouse.openPosition(
-							PositionDirection.LONG,
-							new BN(driftPrice * amount * QUOTE_PRECISION),
-							MarketInfo.marketIndex
-						)
-						break
-					} catch (e) {
-						console.log(e.message)
-
-						if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
-							let words = e.message.split(' ')
-							let info = await connection.getSignatureStatus(words[17], { searchTransactionHistory: true })
-
-							if (info.value) {
-								break
-							} else {
-								errCount += 1
-							}
-						}
-
-						if (errCount === 2) {
-							stopCount += 1
-							console.log('pass')
-							break
-						}
-					}
-				}
+				await makeDriftOrder('buy', driftPrice)
 
 				if (stopCount === 10) {
 					console.log('stop')
