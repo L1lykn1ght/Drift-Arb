@@ -14,52 +14,17 @@ import {
 	convertToNumber,
 	MARK_PRICE_PRECISION
 } from '@drift-labs/sdk'
-import { sleep, updateNumber, baseAssets } from './libs/lib'
-import { question, keyInSelect, keyInYN } from 'readline-sync'
+import { sleep, updateNumber, input } from './libs/lib'
 
 const QUOTE_PRECISION = 10 ** 6
 
 
-// ---------------------------------------------------------------------------
+// -------------------------- initial setting ---------------------------------
 
 
 // receive input about token, lot amount, and max count
+let [baseAsset, amount, limit] = input()
 
-let index = keyInSelect(baseAssets, 'Select Base Asset')
-const baseAsset = baseAssets[index]
-
-if (index === -1) { process.exit(0) }
-
-
-let tmpAmount = question(`Enter amount of ${baseAssets[index]} per tx (in number): `)
-let amount = parseFloat(tmpAmount)
-
-if (isNaN(amount)) {
-    console.log('Type in number!')
-    process.exit(0)
-}
-
-
-let tmpLimit = question(`Enter max count (in number): `)
-let limit = parseFloat(tmpLimit)
-
-if (isNaN(limit)) {
-	console.log('Type in number!')
-	process.exit(0)
-}
-
-
-if (keyInYN(`Max position size is ${amount * limit} ${baseAsset}, is this right?`)) {
-	console.log('Bot starts running')
-} else {
-	process.exit(0)
-}
-
-
-// ---------------------------------------------------------------------------
-
-
-// initial setting
 
 // solana, drift setting
 const connection = new Connection(process.env.RPCendpoint, 'processed')
@@ -72,20 +37,19 @@ const wallet = new Wallet(keypair)
 const sdkConfig = initialize({ env: 'mainnet-beta' })
 const clearingHouseProgramId = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID)
 
+
 // ccxt FTX client
 const client = new ftx({
 	apiKey: process.env.apiKey,
 	secret: process.env.secret
 })
 
-let diff1 = 0.25
-let diff2 = 0.25
-
 
 // ---------------------------------------------------------------------------
 
 
 const main = async (baseAsset: string) => {
+
 	// create clearingHouse instance
 	const clearingHouse = ClearingHouse.from(
 		connection,
@@ -94,6 +58,8 @@ const main = async (baseAsset: string) => {
 	)
 	await clearingHouse.subscribe()
 
+	// When I try to edit order with the same price in FTX,
+	// FTX cli returns an error, so I set the updateNum
 	const updateNum = updateNumber['ftx'][baseAsset]
 	const symbol = baseAsset + '-PERP'
 	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
@@ -122,9 +88,13 @@ const main = async (baseAsset: string) => {
 	let remainingBuy = amount
 	let remainingSell = amount
 
-	// -limit <= count <= limit
+	// When making FTX buy Drift sell position, count += 1
+	// When making FTX sell Drift buy position, count -= 1
+	// and -limit <= count <= limit
 	let count = 0
 
+	// % difference between FTX price and drift price to initiate a position
+	// higher is likely more profitable but less opportunities
 	let diff1 = 0.25
 	let diff2 = 0.25
 
@@ -166,10 +136,13 @@ const main = async (baseAsset: string) => {
 			} catch (e) {
 				console.log(e.message)
 
+				// if tx is not confirmed in 30 seconds, check if tx is succeeded or failed
 				if (e.message.indexOf('It is unknown if it succeeded or failed.') !== -1) {
 					let words = e.message.split(' ')
 					let info = await connection.getSignatureStatus(words[17], { searchTransactionHistory: true })
 
+					// if succeeded, break
+					// else retry (errCount += 1)
 					if (info.value) {
 						break
 					} else {
@@ -177,6 +150,7 @@ const main = async (baseAsset: string) => {
 					}
 				}
 
+				// if errCount == 2, skip
 				if (errCount === 2) {
 					stopCount += 1
 					console.log('pass')
@@ -184,6 +158,8 @@ const main = async (baseAsset: string) => {
 				}
 			}
 		}
+
+		errCount = 0
 	}
 
 
@@ -233,8 +209,9 @@ const main = async (baseAsset: string) => {
 			let currentMarketPrice = calculateMarkPrice(MarketAccount)
 			let driftPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION)
 			
-			// FTX buy Drift sell
+			// make FTX buy Drift sell position
 			if (count < limit) {
+
 				// place FTX buy limit order
 				if (flagFTXBuy) {
 					flagFTXBuy = false
@@ -277,14 +254,14 @@ const main = async (baseAsset: string) => {
 					flagDriftSell = false
 					flagFTXBuy = true
 					await makeDriftOrder('sell', driftPrice)
-	
+
+					// Stop because long position may not be equal to short one.
 					if (stopCount === 10) {
 						console.log('stop')
 						process.exit(0)
 					}
 					
 					count += 1
-					errCount = 0
 					console.log('Drift order executed')
 					console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
 	
@@ -295,8 +272,9 @@ const main = async (baseAsset: string) => {
 				}
 			}
 	
-			// FTX sell Drift buy
+			// make FTX sell Drift buy position
 			if (-limit < count) {
+
 				// place FTX sell limit order
 				if (flagFTXSell) {
 					flagFTXSell = false
@@ -339,17 +317,18 @@ const main = async (baseAsset: string) => {
 					flagDriftBuy = false
 					flagFTXSell = true
 					await makeDriftOrder('buy', driftPrice)
-	
+
+					// Stop because long position may not be equal to short one.
 					if (stopCount === 10) {
 						console.log('stop')
 						process.exit(0)
 					}
 					
 					count -= 1
-					errCount = 0
 					console.log('Drift order executed')
 					console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
-	
+
+					// Make sure that both FTX and Drift positions are closed
 					if (count === 0) {
 						await closeAllPositions()
 					}
@@ -398,7 +377,8 @@ const main = async (baseAsset: string) => {
 					break
 				} catch(e) {}
 			}
-	
+
+			// sleep 10 min
 			await sleep(600000)
 		}
 	}

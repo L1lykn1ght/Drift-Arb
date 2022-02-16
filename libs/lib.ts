@@ -1,6 +1,45 @@
+import { question, keyInSelect, keyInYN } from 'readline-sync'
+
+
 export const sleep = async (ms: number) => {
     return new Promise(r => setTimeout(r, ms))
 }
+
+
+export const input = (): [string, number, number] => {
+    let index = keyInSelect(baseAssets, 'Select Base Asset')
+    const baseAsset = baseAssets[index]
+
+    if (index === -1) { process.exit(0) }
+
+
+    let tmpAmount = question(`Enter amount of ${baseAssets[index]} per tx (in number): `)
+    let amount = parseFloat(tmpAmount)
+
+    if (isNaN(amount)) {
+        console.log('Type in number!')
+        process.exit(0)
+    }
+
+
+    let tmpLimit = question(`Enter max count (in number): `)
+    let limit = parseFloat(tmpLimit)
+
+    if (isNaN(limit)) {
+        console.log('Type in number!')
+        process.exit(0)
+    }
+
+
+    if (keyInYN(`Max position size is ${amount * limit} ${baseAsset}, is this right?`)) {
+        console.log('Bot starts running')
+    } else {
+        process.exit(0)
+    }
+
+    return [baseAsset, amount, limit]
+}
+
 
 export const baseAssets = [
     'SOL',
@@ -16,6 +55,7 @@ export const baseAssets = [
     'ALGO',
     'FTT'
 ]
+
 
 export const updateNumber = {
     ftx: {
