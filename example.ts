@@ -270,6 +270,8 @@ const main = async (baseAsset: string) => {
 
 			// execute drift sell order
 			if (flagDriftSell) {
+				flagDriftSell = false
+				flagFTXBuy = true
 				await makeDriftOrder('sell', driftPrice)
 
 				if (stopCount === 10) {
@@ -278,12 +280,9 @@ const main = async (baseAsset: string) => {
 				}
 				
 				count += 1
+				errCount = 0
 				console.log('Drift order executed')
 				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
-
-				flagDriftSell = false
-				flagFTXBuy = true
-				errCount = 0
 
 				// Make sure that both FTX and Drift positions are closed
 				if (count === 0) {
@@ -333,6 +332,8 @@ const main = async (baseAsset: string) => {
 
 			// execute drift buy order
 			if (flagDriftBuy) {
+				flagDriftBuy = false
+				flagFTXSell = true
 				await makeDriftOrder('buy', driftPrice)
 
 				if (stopCount === 10) {
@@ -341,12 +342,9 @@ const main = async (baseAsset: string) => {
 				}
 				
 				count -= 1
+				errCount = 0
 				console.log('Drift order executed')
 				console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
-
-				flagDriftBuy = false
-				flagFTXSell = true
-				errCount = 0
 
 				if (count === 0) {
 					await closeAllPositions()
