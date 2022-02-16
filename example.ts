@@ -6,8 +6,7 @@ import {
 	Wallet,
 	calculateMarkPrice,
 	calculateEstimatedFundingRate,
-	getClearingHouse,
-	getWebSocketClearingHouseConfig,
+	ClearingHouse,
 	PythClient,
 	initialize,
 	Markets,
@@ -73,12 +72,6 @@ const wallet = new Wallet(keypair)
 const sdkConfig = initialize({ env: 'mainnet-beta' })
 const clearingHouseProgramId = new PublicKey(sdkConfig.CLEARING_HOUSE_PROGRAM_ID)
 
-const clearingHouseConfig = getWebSocketClearingHouseConfig(
-	connection,
-	wallet,
-	clearingHouseProgramId
-)
-
 // ccxt FTX client
 const client = new ftx({
 	apiKey: process.env.apiKey,
@@ -94,7 +87,11 @@ let diff2 = 0.25
 
 const main = async (baseAsset: string) => {
 	// create clearingHouse instance
-	const clearingHouse = getClearingHouse(clearingHouseConfig)
+	const clearingHouse = ClearingHouse.from(
+		connection,
+		wallet,
+		clearingHouseProgramId
+	)
 	await clearingHouse.subscribe()
 
 	const updateNum = updateNumber['ftx'][baseAsset]
@@ -140,7 +137,11 @@ const main = async (baseAsset: string) => {
 		while (true) {
 			try {
 				tx = await client.createLimitOrder(symbol, side, amount, price)
-				orderID1 = tx['id']
+				if (side == 'buy') {
+					orderID1 = tx['id']
+				} else {
+					orderID2 = tx['id']
+				}
 				break
 			} catch (e) {}
 		}
@@ -377,7 +378,11 @@ const main = async (baseAsset: string) => {
 
 
 const check = async (baseAsset: string, base: number, delta: number) => {
-	const clearingHouse = getClearingHouse(clearingHouseConfig)
+	const clearingHouse = ClearingHouse.from(
+		connection,
+		wallet,
+		clearingHouseProgramId
+	)
 	await clearingHouse.subscribe()
 
 	const pythClient = new PythClient(connection)
@@ -394,8 +399,8 @@ const check = async (baseAsset: string, base: number, delta: number) => {
 				)
 		
 				let info = await client.fetchFundingRate(symbol)
-				let FundingRateFTX = 100 * info.nextFundingRate
-				
+				let FundingRateFTX = 100 * info.fundingRate
+
 				let num = FundingRateFTX - FundingRateDrift
 
 				if (num <= -0.01) {
