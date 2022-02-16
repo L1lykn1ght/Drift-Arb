@@ -60,6 +60,9 @@ if (keyInYN(`Max position size is ${amount * limit} ${baseAsset}, is this right?
 // ---------------------------------------------------------------------------
 
 
+// initial setting
+
+// solana, drift setting
 const connection = new Connection(process.env.RPCendpoint, 'processed')
 
 const keypair = Keypair.fromSecretKey(
@@ -76,6 +79,7 @@ const clearingHouseConfig = getWebSocketClearingHouseConfig(
 	clearingHouseProgramId
 )
 
+// ccxt FTX client
 const client = new ftx({
 	apiKey: process.env.apiKey,
 	secret: process.env.secret
@@ -89,6 +93,7 @@ let diff2 = 0.25
 
 
 const main = async (baseAsset: string) => {
+	// create clearingHouse instance
 	const clearingHouse = getClearingHouse(clearingHouseConfig)
 	await clearingHouse.subscribe()
 
