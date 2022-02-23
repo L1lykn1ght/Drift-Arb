@@ -14,9 +14,7 @@ import {
 	convertToNumber,
 	MARK_PRICE_PRECISION
 } from '@drift-labs/sdk'
-import { sleep, updateNumber, input, ftxLimitOrder, Side } from './libs/lib'
-
-const QUOTE_PRECISION = 10 ** 6
+import { sleep, updateNumber, input, ftxLimitOrder, Side, QUOTE_PRECISION } from './libs/lib'
 
 
 // -------------------------- initial setting ---------------------------------
@@ -74,6 +72,7 @@ const main = async (baseAsset: string) => {
 		driftSell: false
 	}
 
+	// limit order info
 	let ftxLimitOrderBuy: ftxLimitOrder
 	let ftxLimitOrderSell: ftxLimitOrder
 
@@ -272,7 +271,7 @@ const main = async (baseAsset: string) => {
 				if (ftxLimitOrderBuy.status === 'closed') {
 					console.log('FTX order executed')
 					flag.driftSell = true
-					flag.ftxBuyInit = true
+					
 				
 				} else if (ftxLimitOrderBuy.status === 'canceled') {
 					flag.ftxBuy = true
@@ -288,8 +287,9 @@ const main = async (baseAsset: string) => {
 	
 				// execute drift sell order
 				if (flag.driftSell) {
-					flag.driftSell = false
 					flag.ftxBuy = true
+					flag.ftxBuyInit = true
+					flag.driftSell = false
 					await makeDriftOrder('sell', driftPrice)
 
 					// Stop because long position may not be equal to short one.
@@ -324,7 +324,6 @@ const main = async (baseAsset: string) => {
 				if (ftxLimitOrderSell.status === 'closed') {
 					console.log('FTX order executed')
 					flag.driftBuy = true
-					flag.ftxSellInit = true
 				
 				} else if (ftxLimitOrderSell.status === 'canceled') {
 					flag.ftxSell = true
@@ -340,8 +339,9 @@ const main = async (baseAsset: string) => {
 	
 				// execute drift buy order
 				if (flag.driftBuy) {
-					flag.driftBuy = false
 					flag.ftxSell = true
+					flag.ftxSellInit = true
+					flag.driftBuy = false
 					await makeDriftOrder('buy', driftPrice)
 
 					// Stop because long position may not be equal to short one.

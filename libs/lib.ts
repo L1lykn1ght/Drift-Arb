@@ -84,3 +84,6 @@ export interface ftxLimitOrder {
 
 
 export type Side = 'buy' | 'sell'
+
+
+export const QUOTE_PRECISION = 10 ** 6
