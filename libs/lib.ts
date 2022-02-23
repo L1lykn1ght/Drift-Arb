@@ -73,3 +73,11 @@ export const updateNumber = {
         FTT: 0.002
     }
 }
+
+
+export interface ftxLimitOrder {
+    status: 'open' | 'closed' | 'canceled',
+    orderId: string,
+    price: number,
+    remaining: number
+}

@@ -14,7 +14,7 @@ import {
 	convertToNumber,
 	MARK_PRICE_PRECISION
 } from '@drift-labs/sdk'
-import { sleep, updateNumber, input } from './libs/lib'
+import { sleep, updateNumber, input, ftxLimitOrder } from './libs/lib'
 
 const QUOTE_PRECISION = 10 ** 6
 
@@ -72,13 +72,8 @@ const main = async (baseAsset: string) => {
 		driftSell: false
 	}
 
-	// OrderID of FTX limit order
-	let orderIDBuy: string
-	let orderIDSell: string
-
-	// Price of FTX limit order
-	let ftxPriceBuy: number
-	let ftxPriceSell: number
+	let ftxLimitOrderBuy: ftxLimitOrder
+	let ftxLimitOrderSell: ftxLimitOrder
 
 	let tx: Order
 
@@ -111,11 +106,38 @@ const main = async (baseAsset: string) => {
 			try {
 				tx = await client.createLimitOrder(symbol, side, amount, price)
 				if (side == 'buy') {
-					orderIDBuy = tx['id']
+					ftxLimitOrderBuy = {
+						status: 'open',
+						orderId: tx['id'],
+						price,
+						remaining: amount
+					}
 				} else {
-					orderIDSell = tx['id']
+					ftxLimitOrderSell = {
+						status: 'open',
+						orderId: tx['id'],
+						price,
+						remaining: amount
+					}
 				}
 				break
+			} catch (e) {}
+		}
+	}
+
+
+	const editFTXOrder = async (side: Order['side'], price: number) => {
+		while (true) {
+			try {
+				if (side == 'buy') {
+					tx = await client.editOrder(ftxLimitOrderBuy.orderId, symbol, 'limit', side, ftxLimitOrderBuy.remaining, price)
+					ftxLimitOrderBuy.orderId = tx['id']
+					ftxLimitOrderBuy.price = price
+				} else {
+					tx = await client.editOrder(ftxLimitOrderSell.orderId, symbol, 'limit', side, ftxLimitOrderSell.remaining, price)
+					ftxLimitOrderSell.orderId = tx['id']
+					ftxLimitOrderSell.price = price
+				}
 			} catch (e) {}
 		}
 	}
@@ -215,14 +237,14 @@ const main = async (baseAsset: string) => {
 				// place FTX buy limit order
 				if (flag.ftxBuy) {
 					flag.ftxBuy = false
-					ftxPriceBuy = driftPrice * (100 - diffBuy) / 100
-					await makeFTXOrder('buy', remainingBuy, ftxPriceBuy)
+					let price = driftPrice * (100 - diffBuy) / 100
+					await makeFTXOrder('buy', remainingBuy, price)
 				}
 	
 				// get FTX limit order status
 				while (true) {
 					try {
-						tx = await client.fetchOrder(orderIDBuy, symbol)
+						tx = await client.fetchOrder(ftxLimitOrderBuy.orderId, symbol)
 						statusBuy = tx['status']
 						remainingBuy = tx['remaining']
 						break
@@ -240,12 +262,9 @@ const main = async (baseAsset: string) => {
 				} else {
 					let tmpFTXPrice1 = driftPrice * (100 - diffBuy) / 100
 	
-					if (Math.abs(tmpFTXPrice1 - ftxPriceBuy) >= updateNum) {
-						try {
-							ftxPriceBuy = tmpFTXPrice1
-							tx = await client.editOrder(orderIDBuy, symbol, 'limit', 'buy', remainingBuy, ftxPriceBuy)
-							orderIDBuy = tx['id']
-						} catch (e) {}
+					if (Math.abs(tmpFTXPrice1 - ftxLimitOrderBuy.price) >= updateNum) {
+						let price = tmpFTXPrice1
+						await editFTXOrder('buy', price)
 					}
 				}
 	
@@ -278,14 +297,14 @@ const main = async (baseAsset: string) => {
 				// place FTX sell limit order
 				if (flag.ftxSell) {
 					flag.ftxSell = false
-					ftxPriceSell = driftPrice * (100 + diffSell) / 100
-					await makeFTXOrder('sell', remainingSell, ftxPriceSell)
+					let price = driftPrice * (100 + diffSell) / 100
+					await makeFTXOrder('sell', remainingSell, price)
 				}
 	
 				// get FTX limit order status
 				while (true) {
 					try {
-						tx = await client.fetchOrder(orderIDSell, symbol)
+						tx = await client.fetchOrder(ftxLimitOrderSell.orderId, symbol)
 						statusSell = tx['status']
 						remainingSell = tx['remaining']
 						break
@@ -303,12 +322,9 @@ const main = async (baseAsset: string) => {
 				} else {
 					let tmpFTXPrice2 = driftPrice * (100 + diffSell) / 100
 	
-					if (Math.abs(tmpFTXPrice2 - ftxPriceSell) >= updateNum) {
-						try {
-							ftxPriceSell = tmpFTXPrice2
-							tx = await client.editOrder(orderIDSell, symbol, 'limit', 'sell', remainingSell, ftxPriceSell)
-							orderIDSell = tx['id']
-						} catch (e) {}
+					if (Math.abs(tmpFTXPrice2 - ftxLimitOrderSell.price) >= updateNum) {
+						let price = tmpFTXPrice2
+						await editFTXOrder('sell', price)
 					}
 				}
 	
