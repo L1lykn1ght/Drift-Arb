@@ -109,6 +109,8 @@ const main = async (baseAsset: string) => {
 						price,
 						remaining: tmpAmount
 					}
+
+					flag.ftxBuy = false
 					flag.ftxBuyInit = false
 				} else {
 					let tmpAmount = flag.ftxSellInit ? amount : ftxLimitOrderSell.remaining
@@ -119,6 +121,8 @@ const main = async (baseAsset: string) => {
 						price,
 						remaining: tmpAmount
 					}
+
+					flag.ftxSell = false
 					flag.ftxSellInit = false
 				}
 				break
@@ -258,7 +262,6 @@ const main = async (baseAsset: string) => {
 
 				// place FTX buy limit order
 				if (flag.ftxBuy) {
-					flag.ftxBuy = false
 					let price = driftPrice * (100 - diffBuy) / 100
 					await makeFTXOrder('buy', price)
 				}
@@ -311,7 +314,6 @@ const main = async (baseAsset: string) => {
 
 				// place FTX sell limit order
 				if (flag.ftxSell) {
-					flag.ftxSell = false
 					let price = driftPrice * (100 + diffSell) / 100
 					await makeFTXOrder('sell', price)
 				}
