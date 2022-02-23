@@ -81,3 +81,6 @@ export interface ftxLimitOrder {
     price: number,
     remaining: number
 }
+
+
+export type Side = 'buy' | 'sell'

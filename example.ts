@@ -14,7 +14,7 @@ import {
 	convertToNumber,
 	MARK_PRICE_PRECISION
 } from '@drift-labs/sdk'
-import { sleep, updateNumber, input, ftxLimitOrder } from './libs/lib'
+import { sleep, updateNumber, input, ftxLimitOrder, Side } from './libs/lib'
 
 const QUOTE_PRECISION = 10 ** 6
 
@@ -97,7 +97,7 @@ const main = async (baseAsset: string) => {
 
 
 	// place limit order
-	const makeFTXOrder = async (side: Order['side'], price: number) => {
+	const makeFTXOrder = async (side: Side, price: number) => {
 		while (true) {
 			try {
 				if (side == 'buy') {
@@ -128,7 +128,7 @@ const main = async (baseAsset: string) => {
 
 
 	// edit limit order
-	const editFTXOrder = async (side: Order['side'], price: number) => {
+	const editFTXOrder = async (side: Side, price: number) => {
 		while (true) {
 			try {
 				if (side == 'buy') {
@@ -147,7 +147,7 @@ const main = async (baseAsset: string) => {
 
 
 	// fetch limit order
-	const fetchFTXOrder = async (side: Order['side']) => {
+	const fetchFTXOrder = async (side: Side) => {
 		while (true) {
 			try {
 				if (side == 'buy') {
@@ -166,7 +166,7 @@ const main = async (baseAsset: string) => {
 
 
 	// make drift order
-	const makeDriftOrder = async (side: Order['side'], driftPrice: number) => {
+	const makeDriftOrder = async (side: Side, driftPrice: number) => {
 		let direction = side == 'buy' ? PositionDirection.LONG : PositionDirection.SHORT
 
 		while (true) {
