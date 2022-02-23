@@ -64,13 +64,13 @@ const main = async (baseAsset: string) => {
 	const symbol = baseAsset + '-PERP'
 	const MarketInfo = Markets.find((market) => market.baseAssetSymbol === baseAsset)
 
-	// If true, placing FTX limit order
-	let flagFTXBuy = true
-	let flagFTXSell = true
-
-	// If true, executing drift order
-	let flagDriftSell = false
-	let flagDriftBuy = false
+	// If true, execute order.
+	let flag = {
+		ftxBuy: true,
+		ftxSell: true,
+		driftBuy: false,
+		driftSell: false
+	}
 
 	// OrderID of FTX limit order
 	let orderIDBuy: string
@@ -95,8 +95,8 @@ const main = async (baseAsset: string) => {
 
 	// % difference between FTX price and drift price to initiate a position
 	// higher is likely more profitable but less opportunities
-	let diff1 = 0.25
-	let diff2 = 0.25
+	let diffBuy = 0.25
+	let diffSell = 0.25
 
 	// If drift order is not confirmed in 30 seconds, errCount += 1
 	// If errCount == 2, (stopCount += 1 and consider the order as executed(i.e break))
@@ -203,8 +203,8 @@ const main = async (baseAsset: string) => {
 
 	// Main loop
 	const loop = async () => {
-		while (true) {
 
+		while (true) {
 			let MarketAccount = clearingHouse.getMarket(MarketInfo.marketIndex)
 			let currentMarketPrice = calculateMarkPrice(MarketAccount)
 			let driftPrice = convertToNumber(currentMarketPrice, MARK_PRICE_PRECISION)
@@ -213,9 +213,9 @@ const main = async (baseAsset: string) => {
 			if (count < limit) {
 
 				// place FTX buy limit order
-				if (flagFTXBuy) {
-					flagFTXBuy = false
-					ftxPriceBuy = driftPrice * (100 - diff1) / 100
+				if (flag.ftxBuy) {
+					flag.ftxBuy = false
+					ftxPriceBuy = driftPrice * (100 - diffBuy) / 100
 					await makeFTXOrder('buy', remainingBuy, ftxPriceBuy)
 				}
 	
@@ -231,14 +231,14 @@ const main = async (baseAsset: string) => {
 	
 				if (statusBuy === 'closed') {
 					console.log('FTX order executed')
-					flagDriftSell = true
+					flag.driftSell = true
 					remainingBuy = amount
 				
 				} else if (statusBuy === 'canceled') {
-					flagFTXBuy = true
+					flag.ftxBuy = true
 	
 				} else {
-					let tmpFTXPrice1 = driftPrice * (100 - diff1) / 100
+					let tmpFTXPrice1 = driftPrice * (100 - diffBuy) / 100
 	
 					if (Math.abs(tmpFTXPrice1 - ftxPriceBuy) >= updateNum) {
 						try {
@@ -250,9 +250,9 @@ const main = async (baseAsset: string) => {
 				}
 	
 				// execute drift sell order
-				if (flagDriftSell) {
-					flagDriftSell = false
-					flagFTXBuy = true
+				if (flag.driftSell) {
+					flag.driftSell = false
+					flag.ftxBuy = true
 					await makeDriftOrder('sell', driftPrice)
 
 					// Stop because long position may not be equal to short one.
@@ -276,9 +276,9 @@ const main = async (baseAsset: string) => {
 			if (-limit < count) {
 
 				// place FTX sell limit order
-				if (flagFTXSell) {
-					flagFTXSell = false
-					ftxPriceSell = driftPrice * (100 + diff2) / 100
+				if (flag.ftxSell) {
+					flag.ftxSell = false
+					ftxPriceSell = driftPrice * (100 + diffSell) / 100
 					await makeFTXOrder('sell', remainingSell, ftxPriceSell)
 				}
 	
@@ -294,14 +294,14 @@ const main = async (baseAsset: string) => {
 				
 				if (statusSell === 'closed') {
 					console.log('FTX order executed')
-					flagDriftBuy = true
+					flag.driftBuy = true
 					remainingSell = amount
 				
 				} else if (statusSell === 'canceled') {
-					flagFTXSell = true
+					flag.ftxSell = true
 				
 				} else {
-					let tmpFTXPrice2 = driftPrice * (100 + diff2) / 100
+					let tmpFTXPrice2 = driftPrice * (100 + diffSell) / 100
 	
 					if (Math.abs(tmpFTXPrice2 - ftxPriceSell) >= updateNum) {
 						try {
@@ -313,9 +313,9 @@ const main = async (baseAsset: string) => {
 				}
 	
 				// execute drift buy order
-				if (flagDriftBuy) {
-					flagDriftBuy = false
-					flagFTXSell = true
+				if (flag.driftBuy) {
+					flag.driftBuy = false
+					flag.ftxSell = true
 					await makeDriftOrder('buy', driftPrice)
 
 					// Stop because long position may not be equal to short one.
@@ -358,20 +358,20 @@ const main = async (baseAsset: string) => {
 					let num = FundingRateFTX - FundingRateDrift
 	
 					if (num <= -0.01) {
-						diff1 = base + delta * 4
-						diff2 = base - delta * 2
+						diffBuy = base + delta * 4
+						diffSell = base - delta * 2
 					} else if (-0.01 < num && num < -0.005) {
-						diff1 = base + delta * 2
-						diff2 = base - delta
+						diffBuy = base + delta * 2
+						diffSell = base - delta
 					} else if (-0.005 <= num && num <= 0.005) {
-						diff1 = base
-						diff2 = base
+						diffBuy = base
+						diffSell = base
 					} else if (0.005 < num && num < 0.01) {
-						diff1 = base - delta
-						diff2 = base + delta * 2
+						diffBuy = base - delta
+						diffSell = base + delta * 2
 					} else {
-						diff1 = base - delta * 2
-						diff2 = base + delta * 4
+						diffBuy = base - delta * 2
+						diffSell = base + delta * 4
 					}
 	
 					break
