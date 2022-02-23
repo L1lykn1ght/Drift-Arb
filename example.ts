@@ -267,20 +267,23 @@ const main = async (baseAsset: string) => {
 	
 				// fetch FTX buy limit order
 				await fetchFTXOrder('buy')
-	
-				if (ftxLimitOrderBuy.status === 'closed') {
-					console.log('FTX order executed')
-					flag.driftSell = true
+
+				switch (ftxLimitOrderBuy.status) {
+					case 'closed':
+						console.log('FTX order executed')
+						flag.driftSell = true
+						break
 					
-				} else if (ftxLimitOrderBuy.status === 'canceled') {
-					flag.ftxBuy = true
+					case 'canceled':
+						flag.ftxBuy = true
+						break
+					
+					default:
+						let tmpFTXPriceBuy = driftPrice * (100 - diffBuy) / 100
 	
-				} else {
-					let tmpFTXPriceBuy = driftPrice * (100 - diffBuy) / 100
-	
-					if (Math.abs(tmpFTXPriceBuy - ftxLimitOrderBuy.price) >= updateNum) {
-						await editFTXOrder('buy', tmpFTXPriceBuy)
-					}
+						if (Math.abs(tmpFTXPriceBuy - ftxLimitOrderBuy.price) >= updateNum) {
+							await editFTXOrder('buy', tmpFTXPriceBuy)
+						}
 				}
 	
 				// execute drift sell order
@@ -307,20 +310,23 @@ const main = async (baseAsset: string) => {
 	
 				// fetch FTX sell limit order
 				await fetchFTXOrder('sell')
-				
-				if (ftxLimitOrderSell.status === 'closed') {
-					console.log('FTX order executed')
-					flag.driftBuy = true
-				
-				} else if (ftxLimitOrderSell.status === 'canceled') {
-					flag.ftxSell = true
-				
-				} else {
-					let tmpFTXPriceSell = driftPrice * (100 + diffSell) / 100
+
+				switch (ftxLimitOrderSell.status) {
+					case 'closed':
+						console.log('FTX order executed')
+						flag.driftBuy = true
+						break
+					
+					case 'canceled':
+						flag.ftxSell = true
+						break
+					
+					default:
+						let tmpFTXPriceSell = driftPrice * (100 + diffSell) / 100
 	
-					if (Math.abs(tmpFTXPriceSell - ftxLimitOrderSell.price) >= updateNum) {
-						await editFTXOrder('sell', tmpFTXPriceSell)
-					}
+						if (Math.abs(tmpFTXPriceSell - ftxLimitOrderSell.price) >= updateNum) {
+							await editFTXOrder('sell', tmpFTXPriceSell)
+						}
 				}
 	
 				// execute drift buy order
