@@ -272,16 +272,14 @@ const main = async (baseAsset: string) => {
 					console.log('FTX order executed')
 					flag.driftSell = true
 					
-				
 				} else if (ftxLimitOrderBuy.status === 'canceled') {
 					flag.ftxBuy = true
 	
 				} else {
-					let tmpFTXPrice1 = driftPrice * (100 - diffBuy) / 100
+					let tmpFTXPriceBuy = driftPrice * (100 - diffBuy) / 100
 	
-					if (Math.abs(tmpFTXPrice1 - ftxLimitOrderBuy.price) >= updateNum) {
-						let price = tmpFTXPrice1
-						await editFTXOrder('buy', price)
+					if (Math.abs(tmpFTXPriceBuy - ftxLimitOrderBuy.price) >= updateNum) {
+						await editFTXOrder('buy', tmpFTXPriceBuy)
 					}
 				}
 	
@@ -292,20 +290,9 @@ const main = async (baseAsset: string) => {
 					flag.driftSell = false
 					await makeDriftOrder('sell', driftPrice)
 
-					// Stop because long position may not be equal to short one.
-					if (stopCount === 10) {
-						console.log('stop')
-						process.exit(0)
-					}
-					
 					count += 1
 					console.log('Drift order executed')
 					console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
-	
-					// Make sure that both FTX and Drift positions are closed
-					if (count === 0) {
-						await closeAllPositions()
-					}
 				}
 			}
 	
@@ -329,11 +316,10 @@ const main = async (baseAsset: string) => {
 					flag.ftxSell = true
 				
 				} else {
-					let tmpFTXPrice2 = driftPrice * (100 + diffSell) / 100
+					let tmpFTXPriceSell = driftPrice * (100 + diffSell) / 100
 	
-					if (Math.abs(tmpFTXPrice2 - ftxLimitOrderSell.price) >= updateNum) {
-						let price = tmpFTXPrice2
-						await editFTXOrder('sell', price)
+					if (Math.abs(tmpFTXPriceSell - ftxLimitOrderSell.price) >= updateNum) {
+						await editFTXOrder('sell', tmpFTXPriceSell)
 					}
 				}
 	
@@ -343,22 +329,22 @@ const main = async (baseAsset: string) => {
 					flag.ftxSellInit = true
 					flag.driftBuy = false
 					await makeDriftOrder('buy', driftPrice)
-
-					// Stop because long position may not be equal to short one.
-					if (stopCount === 10) {
-						console.log('stop')
-						process.exit(0)
-					}
 					
 					count -= 1
 					console.log('Drift order executed')
 					console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
-
-					// Make sure that both FTX and Drift positions are closed
-					if (count === 0) {
-						await closeAllPositions()
-					}
 				}
+			}
+
+			// Make sure that both FTX and Drift positions are closed
+			if (count === 0) {
+				await closeAllPositions()
+			}
+
+			// Stop because long position may not be equal to short one.
+			if (stopCount === 10) {
+				console.log('stop')
+				process.exit(0)
 			}
 	
 			// await sleep(100)
