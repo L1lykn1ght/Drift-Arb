@@ -67,7 +67,9 @@ const main = async (baseAsset: string) => {
 	// If true, execute order.
 	let flag = {
 		ftxBuy: true,
+		ftxBuyInit: true,
 		ftxSell: true,
+		ftxSellInit: true,
 		driftBuy: false,
 		driftSell: false
 	}
@@ -76,9 +78,6 @@ const main = async (baseAsset: string) => {
 	let ftxLimitOrderSell: ftxLimitOrder
 
 	let tx: Order
-
-	let remainingBuy = amount
-	let remainingSell = amount
 
 	// When making FTX buy Drift sell position, count += 1
 	// When making FTX sell Drift buy position, count -= 1
@@ -98,24 +97,29 @@ const main = async (baseAsset: string) => {
 
 
 	// place limit order
-	const makeFTXOrder = async (side: Order['side'], amount: number, price: number) => {
+	const makeFTXOrder = async (side: Order['side'], price: number) => {
 		while (true) {
 			try {
-				tx = await client.createLimitOrder(symbol, side, amount, price)
 				if (side == 'buy') {
+					let tmpAmount = flag.ftxBuyInit ? amount : ftxLimitOrderBuy.remaining
+					tx = await client.createLimitOrder(symbol, side, tmpAmount, price)
 					ftxLimitOrderBuy = {
 						status: 'open',
 						orderId: tx['id'],
 						price,
-						remaining: amount
+						remaining: tmpAmount
 					}
+					flag.ftxBuyInit = false
 				} else {
+					let tmpAmount = flag.ftxSellInit ? amount : ftxLimitOrderSell.remaining
+					tx = await client.createLimitOrder(symbol, side, tmpAmount, price)
 					ftxLimitOrderSell = {
 						status: 'open',
 						orderId: tx['id'],
 						price,
-						remaining: amount
+						remaining: tmpAmount
 					}
+					flag.ftxSellInit = false
 				}
 				break
 			} catch (e) {}
@@ -256,7 +260,7 @@ const main = async (baseAsset: string) => {
 				if (flag.ftxBuy) {
 					flag.ftxBuy = false
 					let price = driftPrice * (100 - diffBuy) / 100
-					await makeFTXOrder('buy', remainingBuy, price)
+					await makeFTXOrder('buy', price)
 				}
 	
 				// fetch FTX buy limit order
@@ -265,7 +269,7 @@ const main = async (baseAsset: string) => {
 				if (ftxLimitOrderBuy.status === 'closed') {
 					console.log('FTX order executed')
 					flag.driftSell = true
-					remainingBuy = amount
+					flag.ftxBuyInit = true
 				
 				} else if (ftxLimitOrderBuy.status === 'canceled') {
 					flag.ftxBuy = true
@@ -309,7 +313,7 @@ const main = async (baseAsset: string) => {
 				if (flag.ftxSell) {
 					flag.ftxSell = false
 					let price = driftPrice * (100 + diffSell) / 100
-					await makeFTXOrder('sell', remainingSell, price)
+					await makeFTXOrder('sell', price)
 				}
 	
 				// fetch FTX sell limit order
@@ -318,7 +322,7 @@ const main = async (baseAsset: string) => {
 				if (ftxLimitOrderSell.status === 'closed') {
 					console.log('FTX order executed')
 					flag.driftBuy = true
-					remainingSell = amount
+					flag.ftxSellInit = true
 				
 				} else if (ftxLimitOrderSell.status === 'canceled') {
 					flag.ftxSell = true
