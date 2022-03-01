@@ -296,6 +296,11 @@ const main = async (baseAsset: string) => {
 					count += 1
 					console.log('Drift order executed')
 					console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
+
+					// Make sure that both FTX and Drift positions are closed
+					if (count === 0) {
+						await closeAllPositions()
+					}
 				}
 			}
 	
@@ -339,12 +344,12 @@ const main = async (baseAsset: string) => {
 					count -= 1
 					console.log('Drift order executed')
 					console.log(`Count: ${count}, Position Amount: ${Math.abs(amount * count)} ${baseAsset}`)
-				}
-			}
 
-			// Make sure that both FTX and Drift positions are closed
-			if (count === 0) {
-				await closeAllPositions()
+					// Make sure that both FTX and Drift positions are closed
+					if (count === 0) {
+						await closeAllPositions()
+					}
+				}
 			}
 
 			// Stop because long position may not be equal to short one.
