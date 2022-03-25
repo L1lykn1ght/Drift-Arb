@@ -372,7 +372,7 @@ const main = async (baseAsset: string) => {
 				try {
 					let MarketAccount = clearingHouse.getMarket(MarketInfo.marketIndex)
 					let FundingRateDrift = convertToNumber(
-						await calculateEstimatedFundingRate(MarketAccount, await pythClient.getPriceData(MarketAccount.amm.oracle), new BN(1), "interpolated")
+						await calculateEstimatedFundingRate(MarketAccount, await pythClient.getOraclePriceData(MarketAccount.amm.oracle), new BN(1), "interpolated")
 					)
 			
 					let info = await client.fetchFundingRate(symbol)
