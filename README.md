@@ -12,6 +12,7 @@ And do not forget about .env file.
 
 ```
 npm install
+tsc
 node example.js
 ```
 
